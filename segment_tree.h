@@ -1,69 +1,85 @@
-// segtree space 4n //call stack space O(log(n)) //time to build O(n)
-// make_segment_tree(segtree,array,0,0,array_size-1);
-void make_segment_tree(int segtree[], int array[], int index, int array_low, int array_high)
+class SegmentTree
 {
-    if (array_low == array_high)
+private:
+    // Time complexity: O(n)
+    // Space complexity: O(4n)
+    void build_segment_tree(int i, int low, int high)
     {
-        segtree[index] = array[array_low];
-        return;
-    }
-
-    int left_index = 2 * index + 1;
-    int right_index = 2 * index + 2;
-
-    int range_mid = (array_low + array_high) / 2;
-
-    make_segment_tree(segtree, array, left_index, array_low, range_mid);
-    make_segment_tree(segtree, array, right_index, range_mid + 1, array_high);
-
-    segtree[index] = segtree[left_index] + segtree[right_index]; // operation
-}
-
-// call stack O(log(n)) //time O(log(n))
-// query(segtree,0,0,array_size-1,l,r);
-int query(int segtree[], int index, int array_low, int array_high, int l, int r)
-{ // array low & high represent value of segtree[index] for array range
-
-    if (l <= array_low && array_high <= r)
-    {
-        return segtree[index];
-    }
-    if (l > array_high || r < array_low)
-    {
-        return 0; // operation
-    }
-    int left_index = 2 * index + 1;
-    int right_index = 2 * index + 2;
-
-    int array_mid = (array_high + array_low) / 2;
-
-    int left_query = query(segtree, left_index, array_low, array_mid, l, r);
-    int right_query = query(segtree, right_index, array_mid + 1, array_high, l, r);
-
-    return left_query + right_query; // operation
-}
-
-// call stack O(log(n)) //time O(log(n))
-// update(segtree,0,0,array_size-1,update_index,new_val);
-void update(int segtree[], int index, int array_low, int array_high, int update_index, int new_val)
-{
-    if (array_low == array_high)
-    {
-        segtree[index] = new_val;
-    }
-    else
-    {
-        int left_index = 2 * index + 1;
-        int right_index = 2 * index + 2;
-        int array_mid = (array_low + array_high) / 2;
-        if (update_index <= array_mid)
+        if (low == high)
         {
-            update(segtree, left_index, array_low, array_mid, update_index, new_val);
+            segtree[i] = array[low]; // Operation
+            return;
         }
+
+        int l = 2 * i + 1;
+        int r = 2 * i + 2;
+        int mid = (low + high) / 2;
+
+        build_segment_tree(l, low, mid);
+        build_segment_tree(r, mid + 1, high);
+
+        segtree[i] = segtree[l] + segtree[r]; // Operation
+    }
+
+    // Time complexity: O(log(n))
+    int query_segment_tree(int i, int low, int high, int a, int b)
+    {
+        if (a <= low && high <= b)
+            return segtree[i];
+        if (b < low || high < a)
+            return 0; // Operation
+
+        int l = 2 * i + 1;
+        int r = 2 * i + 2;
+        int mid = (high + low) / 2;
+
+        int lq = query_segment_tree(l, low, mid, a, b);
+        int rq = query_segment_tree(r, mid + 1, high, a, b);
+
+        return lq + rq; // Operation
+    }
+
+    // Update a single element in the segment tree
+    // Time complexity: O(log(n))
+    void update_segment_tree(int i, int low, int high, int index, int val)
+    {
+        if (low == high)
+            segtree[i] = val; // Operation
         else
         {
-            update(segtree, right_index, array_mid + 1, array_high, update_index, new_val);
+            int l = 2 * i + 1;
+            int r = 2 * i + 2;
+            int mid = (low + high) / 2;
+
+            if (index <= mid)
+                update_segment_tree(l, low, mid, index, val);
+            else
+                update_segment_tree(r, mid + 1, high, index, val);
+
+            segtree[i] = segtree[l] + segtree[r]; // Operation
         }
-        segtree[index] = segtree[left_index] + segtree[right_index]; // operation
     }
-}
+
+public:
+    vector<int> segtree;
+    vector<int> array;
+
+    SegmentTree(vector<int> &array)
+    {
+        this->array = array;
+        int n = array.size();
+        segtree.resize(4 * n);
+        build_segment_tree(0, 0, n - 1);
+    }
+
+    int query(int l, int r) // 0 <= l <= r <= n-1
+    {
+        return query_segment_tree(0, 0, array.size() - 1, l, r);
+    }
+
+    void update(int index, int val) // 0 <= i <= n-1
+    {
+        array[index] = val;
+        update_segment_tree(0, 0, array.size() - 1, index, val);
+    }
+};

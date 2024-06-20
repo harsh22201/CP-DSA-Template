@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <set>
 
 using namespace std;
 #define int long long
@@ -55,26 +56,219 @@ bool detect_cycle_undirected(vector<vector<int>> graph) // O(V+E) // is tree
     return false;
 }
 
-void topological_sort_dfs(int curnode, vector<int> &ans, vector<int> &visited, vector<vector<int>> &graph)
+void topological_sort_dfs(int curnode, vector<int> &ordering, vector<bool> &visited, vector<vector<int>> &graph)
 {
     if (visited[curnode])
         return;
-    visited[curnode] = 1;
+    visited[curnode] = true;
     for (int child : graph[curnode])
-    {
-        topological_sort_dfs(child, ans, visited, graph);
-    }
-    ans.push_back(curnode);
+        topological_sort_dfs(child, ordering, visited, graph);
+    ordering.push_back(curnode);
 }
 vector<int> topological_sort(vector<vector<int>> &graph) // DAG
 {
     int nodes = graph.size();
-    vector<int> ans;
-    vector<int> visited(nodes, 0);
+    vector<int> ordering;
+    vector<bool> visited(nodes, false);
     for (int i = 0; i < nodes; i++)
+        topological_sort_dfs(i, ordering, visited, graph);
+    reverse(ordering.begin(), ordering.end());
+    return ordering;
+}
+
+vector<pair<int, int>> dijkstra(vector<vector<pair<int, int>>> &graph, int start) // O((V+E)logV)
+{
+    int nodes = graph.size();
+    // start--;
+
+    vector<pair<int, int>> d(nodes, {1e18, -1}); // <distance, predecessor>
+    set<pair<int, int>> q;                       // <distance, node>
+    d[start].first = 0;
+    q.insert({0, start});
+
+    while (!q.empty())
     {
-        topological_sort_dfs(i, ans, visited, graph);
+        int curnode = q.begin()->second;
+        int curnode_dist = q.begin()->first;
+        q.erase(q.begin());
+
+        for (auto adj : graph[curnode])
+        {
+            int adj_node = adj.first;
+            int weight = adj.second;
+            int cur_dist = d[adj_node].first;
+            int new_dist = curnode_dist + weight;
+
+            if (cur_dist > new_dist)
+            {
+                q.erase({cur_dist, adj_node});
+                q.insert({new_dist, adj_node});
+                d[adj_node].first = new_dist;
+                d[adj_node].second = curnode;
+            }
+        }
     }
-    reverse(ans.begin(), ans.end());
-    return ans;
+    return d;
+}
+
+vector<int> dijkstra_path(vector<pair<int, int>> d, int reach)
+{
+    vector<int> path;
+    int cur = reach;
+    while (cur != -1)
+    {
+        path.push_back(cur);
+        cur = d[cur].second;
+    }
+    reverse(path.begin(), path.end());
+    return path;
+}
+
+void kosaraju_dfs1(int curnode, vector<vector<int>> &graph, vector<int> &order, vector<bool> &visited)
+{
+    visited[curnode] = true;
+    for (auto v : graph[curnode])
+        if (!visited[v])
+            kosaraju_dfs1(v, graph, order, visited);
+    order.push_back(curnode);
+}
+void kosaraju_dfs2(int curnode, vector<vector<int>> &graph_rev, vector<int> &component, vector<bool> &visited)
+{
+    visited[curnode] = true;
+    component.push_back(curnode);
+    for (auto v : graph_rev[curnode])
+        if (!visited[v])
+            kosaraju_dfs2(v, graph_rev, component, visited);
+}
+
+vector<vector<int>> kosaraju(vector<vector<int>> &graph)
+{
+    int n = graph.size();
+    vector<vector<int>> graph_scc; // condensation graph //DAG
+    vector<vector<int>> graph_rev(n);
+    for (int u = 0; u < n; u++)
+    {
+        for (auto v : graph[u])
+            graph_rev[v].push_back(u);
+    }
+    // kind of like topological order since graph is not DAG
+    vector<int> order;
+    vector<bool> visited(n, false);
+    for (int i = 0; i < n; i++)
+        if (!visited[i])
+            kosaraju_dfs1(i, graph, order, visited);
+    reverse(order.begin(), order.end());
+    //
+    visited.assign(n, false);
+    vector<int> component;
+    for (auto i : order)
+    {
+        if (!visited[i])
+        {
+            kosaraju_dfs2(i, graph_rev, component, visited);
+            // process component
+            //
+            component.clear();
+        }
+    }
+    return graph_scc;
+}
+
+bool edmonds_karp_bfs(vector<vector<int>> &graph, vector<vector<int>> &capacity, vector<int> &parent, int s, int t)
+{
+    fill(parent.begin(), parent.end(), -2); // unvisited
+    parent[s] = -1;
+    queue<int> q;
+    q.push(s);
+    while (!q.empty())
+    {
+        int u = q.front();
+        q.pop();
+        for (auto v : graph[u])
+        {
+            if (parent[v] == -2 && capacity[u][v])
+            {
+                parent[v] = u;
+                if (v == t)
+                    return true;
+                q.push(v);
+            }
+        }
+    }
+    return false;
+}
+
+// graph - adj list //capacity - adj matrix //ford_fulkerson uses dfs O(V(flow)) //O(V*E^2)
+int edmonds_karp(vector<vector<int>> &graph, vector<vector<int>> &capacity, int s, int t)
+{
+    int n = graph.size();
+    vector<int> parent(n);
+    int max_flow = 0;
+    while (edmonds_karp_bfs(graph, capacity, parent, s, t))
+    {
+        int aug_flow = 2e9;
+        int v = t;
+        while (v != s)
+        {
+            int u = parent[v];
+            aug_flow = min(aug_flow, capacity[u][v]);
+            v = u;
+        }
+        max_flow += aug_flow;
+        v = t;
+        while (v != s)
+        {
+            int u = parent[v];
+            capacity[u][v] -= aug_flow;
+            capacity[v][u] += aug_flow;
+            v = u;
+        }
+    }
+    return max_flow;
+}
+
+// DSU
+template <typename T>
+void make_set(int v, T &parent)
+{
+    parent[v] = v;
+}
+template <typename T>
+int find_set(int v, T &parent)
+{
+    if (v == parent[v])
+        return v;
+    return parent[v] = find_set(parent[v], parent);
+}
+template <typename T>
+void set_union(int a, int b, T &parent)
+{
+    a = find_set(a, parent);
+    b = find_set(b, parent);
+    if (a != b)
+        parent[b] = a;
+}
+//
+int kruskal(vector<vector<pair<int, int>>> &graph)
+{
+    int n = graph.size();
+    vector<int> parent(n);
+    for (int i = 0; i < n; i++)
+        make_set(i, parent);
+    vector<pair<int, pair<int, int>>> edges;
+    for (int i = 0; i < n; i++)
+        for (auto v : graph[i])
+            edges.push_back({v.second, {i, v.first}});
+    sort(edges.begin(), edges.end());
+    int mstw = 0;
+    for (auto edge : edges)
+    {
+        int w = edge.first, u = edge.second.first, v = edge.second.second;
+        if (find_set(u, parent) != find_set(v, parent))
+        {
+            mstw += w;
+            set_union(u, v, parent);
+        }
+    }
+    return mstw;
 }
