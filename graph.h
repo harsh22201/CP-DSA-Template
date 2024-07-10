@@ -1,7 +1,3 @@
-#include <iostream>
-#include <vector>
-#include <set>
-
 using namespace std;
 #define int long long
 
@@ -58,11 +54,10 @@ bool detect_cycle_undirected(vector<vector<int>> graph) // O(V+E) // is tree
 
 void topological_sort_dfs(int curnode, vector<int> &ordering, vector<bool> &visited, vector<vector<int>> &graph)
 {
-    if (visited[curnode])
-        return;
     visited[curnode] = true;
     for (int child : graph[curnode])
-        topological_sort_dfs(child, ordering, visited, graph);
+        if (!visited[curnode])
+            topological_sort_dfs(child, ordering, visited, graph);
     ordering.push_back(curnode);
 }
 vector<int> topological_sort(vector<vector<int>> &graph) // DAG
@@ -95,15 +90,15 @@ vector<pair<int, int>> dijkstra(vector<vector<pair<int, int>>> &graph, int start
         for (auto adj : graph[curnode])
         {
             int adj_node = adj.first;
-            int weight = adj.second;
-            int cur_dist = d[adj_node].first;
-            int new_dist = curnode_dist + weight;
+            int adj_weight = adj.second;
+            int adj_cur_dist = d[adj_node].first;
+            int adj_new_dist = curnode_dist + adj_weight;
 
-            if (cur_dist > new_dist)
+            if (adj_cur_dist > adj_new_dist)
             {
-                q.erase({cur_dist, adj_node});
-                q.insert({new_dist, adj_node});
-                d[adj_node].first = new_dist;
+                q.erase({adj_cur_dist, adj_node});
+                q.insert({adj_new_dist, adj_node});
+                d[adj_node].first = adj_new_dist;
                 d[adj_node].second = curnode;
             }
         }
@@ -271,4 +266,38 @@ int kruskal(vector<vector<pair<int, int>>> &graph)
         }
     }
     return mstw;
+}
+
+int prims(vector<vector<pair<int, int>>> &graph, int start = 0)
+{
+    int n = graph.size();
+    set<pair<int, int>> q;
+    vector<int> d(n, -1);
+    vector<bool> vistied(n, false);
+    int mstw = 0;
+    q.insert({0, start});
+    d[start] = 0;
+    while (!q.empty())
+    {
+        debug(q);
+        int curnode = q.begin()->second;
+        q.erase(q.begin());
+        vistied[curnode] = true;
+        for (auto adj : graph[curnode])
+        {
+            auto adj_node = adj.first;
+            if (vistied[adj_node])
+                continue;
+            auto adj_cur_dist = d[adj_node];
+            auto adj_new_dist = adj.second;
+            if (adj_cur_dist == -1 || adj_new_dist < adj_cur_dist)
+            {
+                q.erase({adj_cur_dist, adj_node});
+                q.insert({adj_new_dist, adj_node});
+                d[adj_node] = adj_new_dist;
+            }
+        }
+    }
+    int sum_mst = 0;
+    return sum_mst;
 }
